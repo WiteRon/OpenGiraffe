@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>我的环渤海湾浪漫手帐</title>
+  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  <link href="https://cdn.bootcdn.net/ajax/libs/google-fonts/Noto+Sans+SC/Noto+Sans+SC.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #d87093;
+      --secondary-color: #ffb6c1;
+      --background-color: #fff0f5;
+      --text-color: #555;
+      --shadow-color: rgba(216, 112, 147, 0.2);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      min-height: 100vh;
+    }
+
+    .app-container {
+      display: flex;
+      height: 100vh;
+      padding: 20px;
+      gap: 20px;
+    }
+
+    .sidebar {
+      width: 380px;
+      min-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #fff 0%, var(--background-color) 100%);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 8px 30px var(--shadow-color);
+    }
+
+    .header h1 {
+      font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', cursive;
+      color: var(--primary-color);
+      font-size: 42px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #777;
+    }
+
+    .itinerary-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 25px;
+      box-shadow: 0 8px 30px var(--shadow-color);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .city-header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 8px;
+    }
+
+    .city-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+    }
+
+    .city-name {
+      font-size: 28px;
+      font-weight: 500;
+      color: var(--primary-color);
+    }
+
+    .dates {
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 20px;
+      padding-left: 63px;
+    }
+
+    .itinerary-text {
+      flex: 1;
+      width: 100%;
+      border: 2px solid #fdeef2;
+      border-radius: 12px;
+      padding: 15px;
+      font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 15px;
+      line-height: 1.8;
+      color: var(--text-color);
+      background-color: #fff9fb;
+      resize: none;
+      transition: all 0.3s ease;
+    }
+
+    .itinerary-text:focus {
+      outline: none;
+      border-color: var(--secondary-color);
+      box-shadow: 0 0 15px rgba(216, 112, 147, 0.2);
+    }
+
+    .itinerary-text::placeholder {
+      color: #ccc;
+    }
+
+    .notice {
+      margin-top: 15px;
+      font-size: 12px;
+      color: #aaa;
+      text-align: center;
+    }
+
+    .city-list {
+      background: #fff;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 8px 30px var(--shadow-color);
+    }
+
+    .city-list h3 {
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .city-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .city-tag {
+      padding: 8px 16px;
+      background: var(--background-color);
+      border-radius: 20px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+
+    .city-tag:hover {
+      background: var(--secondary-color);
+      color: #fff;
+    }
+
+    .city-tag.active {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .map-wrapper {
+      flex: 1;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px var(--shadow-color);
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px;
+      box-shadow: 0 4px 20px var(--shadow-color);
+    }
+
+    .leaflet-popup-content {
+      margin: 12px 16px;
+      font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+
+    @media (max-width: 900px) {
+      .app-container {
+        flex-direction: column;
+        height: auto;
+      }
+      .sidebar {
+        width: 100%;
+      }
+      .map-wrapper {
+        height: 400px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-container">
+    <div class="sidebar">
+      <div class="header">
+        <h1>My Trip Diary</h1>
+        <p>记录我的环渤海湾浪漫之旅，点击地图上的城市标记，开始编辑你的专属旅行手帐吧！</p>
+      </div>
+      
+      <div class="itinerary-card">
+        <div class="city-header">
+          <div class="city-icon">📍</div>
+          <div id="cityName" class="city-name">选择城市</div>
+        </div>
+        <div id="dates" class="dates"></div>
+        <textarea id="itineraryText" class="itinerary-text" placeholder="在这里写下你的旅行见闻和计划..."></textarea>
+        <p class="notice">行程修改仅在当前页面生效，刷新后将重置</p>
+      </div>
+
+      <div class="city-list">
+        <h3>行程路线</h3>
+        <div id="cityTags" class="city-tags"></div>
+      </div>
+    </div>
+
+    <div id="map" class="map-wrapper"></div>
+  </div>
+
+  <script src="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+  <script>
+    const tripData = {
+      '大连': {
+        coords: [38.92, 121.62],
+        dates: '1月28日 - 1月29日',
+        itinerary: '28日中午出发晚到大连，入住酒店。\n29日计划去海鲜市场，大快朵颐！'
+      },
+      '烟台': {
+        coords: [37.52, 121.39],
+        dates: '1月30日 - 2月1日',
+        itinerary: '30日下午坐邮轮到烟台，晚上入住。\n31日准备逛逛烟台市区。\n1日去附近的岛屿探险！'
+      },
+      '威海': {
+        coords: [37.50, 122.10],
+        dates: '2月2日 - 2月3日',
+        itinerary: '2日下午抵达威海，这是一个干净又美丽的海滨城市。\n3日准备在威海深度游。'
+      },
+      '青岛': {
+        coords: [36.07, 120.33],
+        dates: '2月4日 - 2月6日',
+        itinerary: '4日下午从威海出发去青岛。\n5日感受一下青岛的德式风情和海滨风光。\n6日继续在青岛玩耍。'
+      },
+      '郑州': {
+        coords: [34.75, 113.62],
+        dates: '2月7日',
+        itinerary: '从青岛到郑州，旅途愉快！'
+      }
+    };
+
+    const route = [
+      { from: '大连', to: '烟台' },
+      { from: '烟台', to: '威海' },
+      { from: '威海', to: '青岛' },
+      { from: '青岛', to: '郑州' }
+    ];
+
+    const cityEmojis = {
+      '大连': '�港口',
+      '烟台': '⛵',
+      '威海': '🏖️',
+      '青岛': '🍺',
+      '郑州': '🏯'
+    };
+
+    const map = L.map('map', {
+      center: [38.0, 119.5],
+      zoom: 6,
+      zoomControl: true
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    const cityMarkers = {};
+    const cityNameEl = document.getElementById('cityName');
+    const datesEl = document.getElementById('dates');
+    const itineraryTextEl = document.getElementById('itineraryText');
+    const cityTagsEl = document.getElementById('cityTags');
+
+    Object.entries(tripData).forEach(([city, data]) => {
+      const marker = L.circleMarker(data.coords, {
+        radius: 12,
+        fillColor: '#d87093',
+        color: '#fff',
+        weight: 3,
+        opacity: 1,
+        fillOpacity: 0.8
+      }).addTo(map);
+
+      marker.bindPopup(`
+        <div style="text-align: center; font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;">
+          <strong style="color: #d87093; font-size: 16px;">${city}</strong><br/>
+          <span style="color: #999; font-size: 12px;">${data.dates}</span>
+        </div>
+      `);
+
+      marker.on('click', () => selectCity(city));
+      cityMarkers[city] = marker;
+    });
+
+    const routeCoords = route.map(r => [tripData[r.from].coords, tripData[r.to].coords]);
+
+    routeCoords.forEach((coords, index) => {
+      const polyline = L.polyline(coords, {
+        color: '#d87093',
+        weight: 3,
+        opacity: 0.7,
+        dashArray: '10, 10'
+      }).addTo(map);
+
+      const midLat = (coords[0][0] + coords[1][0]) / 2;
+      const midLng = (coords[0][1] + coords[1][1]) / 2;
+      
+      L.marker([midLat, midLng], {
+        icon: L.divIcon({
+          className: 'arrow-marker',
+          html: '➤',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        })
+      }).addTo(map);
+    });
+
+    Object.keys(tripData).forEach(city => {
+      const tag = document.createElement('span');
+      tag.className = 'city-tag';
+      tag.textContent = city;
+      tag.onclick = () => selectCity(city);
+      cityTagsEl.appendChild(tag);
+    });
+
+    function selectCity(city) {
+      const data = tripData[city];
+      if (!data) return;
+
+      cityNameEl.textContent = city;
+      datesEl.textContent = data.dates;
+      itineraryTextEl.value = data.itinerary;
+
+      map.setView(data.coords, 9, { animate: true });
+
+      Object.values(cityMarkers).forEach(m => {
+        m.setStyle({ fillColor: '#d87093', radius: 12 });
+      });
+      cityMarkers[city].setStyle({ fillColor: '#ff6b6b', radius: 16 });
+
+      document.querySelectorAll('.city-tag').forEach(tag => {
+        tag.classList.toggle('active', tag.textContent === city);
+      });
+    }
+
+    itineraryTextEl.addEventListener('input', (e) => {
+      const currentCity = cityNameEl.textContent;
+      if (tripData[currentCity]) {
+        tripData[currentCity].itinerary = e.target.value;
+      }
+    });
+
+    selectCity('大连');
+  </script>
+</body>
+</html>
