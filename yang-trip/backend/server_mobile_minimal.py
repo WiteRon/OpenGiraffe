@@ -44,3 +44,9 @@ async def mobile():
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/points/earth")
+async def points_earth():
+    """3D Earth page at /points/earth"""
+    return FileResponse(str(TRIP_MOBILE_HTML_PATH))
