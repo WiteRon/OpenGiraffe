@@ -9,6 +9,9 @@ from ..config.settings import Settings
 from ..domain.message import Message
 from ..domain.chat import ChatProvider
 from ..common.exceptions import LLMServiceError, ConfigurationError
+from ..common.logging import get_logger
+
+logger = get_logger("chat")
 
 
 class OpenAICompatProvider(ChatProvider):
@@ -29,6 +32,7 @@ class OpenAICompatProvider(ChatProvider):
             settings: Application settings containing API configuration
         """
         if not settings.api_key:
+            logger.error("API_KEY is missing configuration")
             raise ConfigurationError("API_KEY is required for OpenAICompatProvider")
 
         self.client = OpenAI(
@@ -38,6 +42,7 @@ class OpenAICompatProvider(ChatProvider):
         self.model = settings.model
         self.default_temperature = settings.default_temperature
         self.default_max_tokens = settings.default_max_tokens
+        logger.info(f"OpenAICompatProvider initialized: model={self.model}, base_url={settings.base_url}")
 
     async def chat_completion(
         self,
@@ -75,6 +80,7 @@ class OpenAICompatProvider(ChatProvider):
             content = response.choices[0].message.content
             return content or ""
         except Exception as e:
+            logger.error(f"OpenAI API call failed: {str(e)}", exc_info=True)
             raise LLMServiceError(f"OpenAI API call failed: {str(e)}") from e
 
     def stream_completion(
@@ -114,4 +120,5 @@ class OpenAICompatProvider(ChatProvider):
                 if chunk.choices[0].delta.content is not None:
                     yield chunk.choices[0].delta.content
         except Exception as e:
+            logger.error(f"OpenAI API streaming failed: {str(e)}", exc_info=True)
             raise LLMServiceError(f"OpenAI API streaming failed: {str(e)}") from e

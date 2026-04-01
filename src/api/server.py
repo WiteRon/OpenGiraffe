@@ -12,6 +12,9 @@ from ..config.settings import Settings
 from ..domain.chat import ChatProvider
 from ..domain.message import ChatRequest, ChatResponse, Message
 from ..common.exceptions import AppError
+from ..common.logging import get_logger
+
+logger = get_logger("api")
 
 
 def create_app(provider: ChatProvider, settings: Settings) -> FastAPI:
@@ -43,6 +46,7 @@ def create_app(provider: ChatProvider, settings: Settings) -> FastAPI:
     @app.get("/")
     async def root():
         """Root endpoint with service info."""
+        logger.info("Root endpoint requested")
         return {
             "status": "ok",
             "message": "AI Chat API is running",
@@ -52,6 +56,7 @@ def create_app(provider: ChatProvider, settings: Settings) -> FastAPI:
     @app.get("/health")
     async def health_check():
         """Health check endpoint."""
+        logger.debug("Health check requested")
         return {"status": "healthy"}
 
     @app.post("/v1/chat/completions", response_model=ChatResponse)
@@ -66,20 +71,25 @@ def create_app(provider: ChatProvider, settings: Settings) -> FastAPI:
             Complete chat response
         """
         try:
+            logger.info(f"Received chat completion request, {len(request.messages)} messages")
             content = await provider.chat_completion(
                 messages=request.messages,
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
             )
+            logger.info("Chat completion completed successfully")
             return ChatResponse(content=content)
         except AppError as e:
+            logger.error(f"Application error in chat completion: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
         except Exception as e:
+            logger.error(f"Internal error in chat completion: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
     async def stream_generator(request: ChatRequest):
         """Generate SSE stream for streaming chat completion."""
         try:
+            logger.info(f"Received streaming chat request, {len(request.messages)} messages")
             async for chunk in provider.stream_completion(
                 messages=request.messages,
                 temperature=request.temperature,
@@ -94,10 +104,13 @@ def create_app(provider: ChatProvider, settings: Settings) -> FastAPI:
 
             # Send done marker
             yield f"data: {json.dumps({'delta': '', 'done': True})}\n\n"
+            logger.info("Streaming chat completed successfully")
         except AppError as e:
+            logger.error(f"Application error in streaming chat: {str(e)}")
             error_data = json.dumps({"error": str(e), "done": True})
             yield f"data: {error_data}\n\n"
         except Exception as e:
+            logger.error(f"Internal error in streaming chat: {str(e)}", exc_info=True)
             error_data = json.dumps({"error": f"Internal error: {str(e)}", "done": True})
             yield f"data: {error_data}\n\n"
 
@@ -121,4 +134,5 @@ def create_app(provider: ChatProvider, settings: Settings) -> FastAPI:
             },
         )
 
+    logger.info(f"FastAPI app created, model: {settings.model}, CORS origins: {settings.cors_allow_origins}")
     return app

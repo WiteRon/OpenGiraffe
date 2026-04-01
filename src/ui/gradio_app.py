@@ -147,11 +147,27 @@ def create_gradio_app(provider: ChatProvider, settings: Settings) -> gr.Blocks:
         spacing_size=gr.themes.sizes.spacing_md,
     )
 
+    def extract_text_from_content(content) -> str:
+        """Extract plain text from Gradio content format.
+
+        Newer Gradio versions store content as list of dicts:
+        [{'text': 'hello', 'type': 'text'}, ...]
+        """
+        if isinstance(content, str):
+            return content
+        elif isinstance(content, list):
+            text_parts = []
+            for part in content:
+                if isinstance(part, dict) and "text" in part:
+                    text_parts.append(part["text"])
+            return " ".join(text_parts)
+        return str(content)
+
     def respond(message: str, chat_history):
         """Process user message and stream AI response."""
         # Convert Gradio chat history to domain Message objects
         domain_messages = [
-            Message(role=msg["role"], content=msg["content"])
+            Message(role=msg["role"], content=extract_text_from_content(msg["content"]))
             for msg in chat_history
         ]
         domain_messages.append(Message(role="user", content=message))

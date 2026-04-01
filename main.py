@@ -8,6 +8,10 @@ to start the server conveniently.
 import uvicorn
 from src.container import get_fastapi_app
 from src.config.settings import get_settings
+from src.common.logging import configure_logging
+
+# Configure logging on startup
+configure_logging()
 
 # Get configured FastAPI app
 app = get_fastapi_app()
