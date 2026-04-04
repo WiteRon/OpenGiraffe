@@ -11,13 +11,20 @@ This makes it easy to:
 """
 
 from fastapi import FastAPI
-import gradio as gr
 
 from .config.settings import Settings, get_settings
 from .domain.chat import ChatProvider
 from .providers.openai_compat import OpenAICompatProvider
 from .api.server import create_app
-from .ui.gradio_app import create_gradio_app
+
+# Gradio is optional - only import when needed
+try:
+    import gradio as gr
+    from .ui.gradio_app import create_gradio_app
+    GRADIO_AVAILABLE = True
+except ImportError:
+    GRADIO_AVAILABLE = False
+    create_gradio_app = None
 
 
 def get_settings_cached() -> Settings:
@@ -62,8 +69,10 @@ def get_gradio_app(settings: Settings | None = None) -> gr.Blocks:
         settings: Optional settings (uses cached if not provided)
 
     Returns:
-        Configured Gradio app
+        Configured Gradio application
     """
+    if not GRADIO_AVAILABLE:
+        raise ImportError("Gradio is not installed. Please install it with 'pip install gradio'")
     settings = settings or get_settings_cached()
     provider = get_chat_provider(settings)
     return create_gradio_app(provider, settings)

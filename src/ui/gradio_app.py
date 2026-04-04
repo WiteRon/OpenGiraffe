@@ -21,41 +21,52 @@ def create_gradio_app(provider: ChatProvider, settings: Settings) -> gr.Blocks:
         Configured Gradio Blocks application
     """
 
-    # 完整自定义 CSS - 响应式美化，支持移动端和桌面端
+    # Modern minimalist custom CSS - clean design with proper spacing
     custom_css = """
-    /* 容器自适应 - 大屏居中限制宽度，移动端全屏 */
+    /* Container - centered with max width, full width on mobile */
     .gradio-container {
-        max-width: 900px !important;
+        max-width: 800px !important;
         width: 100% !important;
         margin: 0 auto !important;
-        padding: 1rem !important;
+        padding: 16px !important;
         box-sizing: border-box;
+        background: transparent !important;
     }
 
-    /* 渐变标题栏 */
+    /* Minimal header */
     #chat-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin-bottom: 1rem;
         text-align: center;
+        padding: 16px 0 20px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        margin-bottom: 16px;
     }
 
     #chat-header h1 {
-        color: white !important;
         margin: 0;
-        font-size: 1.8rem;
+        font-size: 24px;
         font-weight: 600;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -0.5px;
     }
 
-    /* 聊天框容器 */
+    #chat-header p {
+        margin: 6px 0 0;
+        font-size: 13px;
+        color: #888;
+    }
+
+    /* Chat container - clean border radius */
     .chatbot-container {
-        border-radius: 12px;
+        border-radius: 16px;
         overflow: hidden;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        background: var(--background-fill-primary);
     }
 
-    /* 滚动条美化 */
+    /* Smooth scrollbar */
     ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
@@ -64,85 +75,124 @@ def create_gradio_app(provider: ChatProvider, settings: Settings) -> gr.Blocks:
         background: transparent;
     }
     ::-webkit-scrollbar-thumb {
-        background: rgba(100, 100, 100, 0.3);
+        background: rgba(150, 150, 150, 0.3);
         border-radius: 3px;
     }
     ::-webkit-scrollbar-thumb:hover {
-        background: rgba(100, 100, 100, 0.5);
+        background: rgba(150, 150, 150, 0.5);
     }
 
-    /* 头像样式 */
+    /* Avatar - clean circle */
     .message-avatar {
-        width: 40px !important;
-        height: 40px !important;
+        width: 36px !important;
+        height: 36px !important;
         border-radius: 50% !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
     }
 
-    /* 底部输入区域 */
+    /* Input area spacing */
     .input-area {
-        margin-top: 1rem;
-        gap: 0.5rem;
+        margin-top: 16px;
+        gap: 8px;
+        align-items: center;
     }
 
-    /* 按钮美化 */
+    /* Send button - minimal gradient with subtle hover */
     .primary-btn {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         border: none !important;
-        transition: transform 0.2s !important;
+        border-radius: 12px !important;
+        padding: 10px 24px !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease !important;
+        height: auto !important;
     }
     .primary-btn:hover {
         transform: translateY(-1px) !important;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35) !important;
+    }
+    .primary-btn:active {
+        transform: translateY(0) !important;
     }
 
-    /* 平板适配 */
-    @media screen and (max-width: 1024px) {
+    /* Clear button - subtle */
+    .secondary-btn {
+        border-radius: 12px !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        transition: all 0.2s ease !important;
+    }
+    .secondary-btn:hover {
+        background: rgba(0, 0, 0, 0.03) !important;
+    }
+
+    /* Text input - cleaner */
+    .input-area textarea {
+        border-radius: 12px !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        transition: border-color 0.2s !important;
+        font-size: 15px !important;
+    }
+    .input-area textarea:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+    }
+
+    /* Desktop */
+    @media screen and (min-width: 768px) {
         .gradio-container {
-            max-width: 100% !important;
-            padding: 0.8rem !important;
+            padding: 24px !important;
         }
         #chat-header {
-            padding: 1rem;
-        }
-        #chat-header h1 {
-            font-size: 1.5rem;
+            padding: 20px 0 24px;
+            margin-bottom: 20px;
         }
     }
 
-    /* 手机适配 */
+    /* Mobile optimization */
     @media screen and (max-width: 768px) {
         .gradio-container {
-            padding: 0.5rem !important;
+            padding: 12px 8px !important;
             max-width: 100% !important;
         }
         #chat-header {
-            padding: 0.8rem;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
+            padding: 12px 0 16px;
+            margin-bottom: 12px;
         }
         #chat-header h1 {
-            font-size: 1.25rem;
+            font-size: 20px;
         }
         .message-avatar {
             width: 32px !important;
             height: 32px !important;
         }
-        /* 移动端聊天框高度自适应 */
         .chatbot-container > div {
-            height: calc(100vh - 220px) !important;
-            min-height: 400px;
+            height: calc(100vh - 180px) !important;
+            min-height: 360px;
+        }
+        .primary-btn {
+            padding: 8px 16px !important;
         }
     }
 
-    /* 深色模式适配 */
+    /* Dark mode support */
     @media (prefers-color-scheme: dark) {
+        .message-avatar {
+            border-color: rgba(255, 255, 255, 0.15) !important;
+        }
+        .chatbot-container {
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        #chat-header {
+            border-bottom-color: rgba(255, 255, 255, 0.1);
+        }
     }
     """
 
-    # 使用 Soft 主题，支持自动深色模式
-    theme = gr.themes.Soft(
+    # Modern minimalist theme - monochrome with blue accent
+    theme = gr.themes.Glass(
         primary_hue="indigo",
-        secondary_hue="purple",
+        secondary_hue="slate",
+        neutral_hue="slate",
         radius_size=gr.themes.sizes.radius_lg,
         spacing_size=gr.themes.sizes.spacing_md,
     )
@@ -182,31 +232,32 @@ def create_gradio_app(provider: ChatProvider, settings: Settings) -> gr.Blocks:
                 {"role": "assistant", "content": partial_message}
             ]
 
-    # 创建 Gradio 界面
-    with gr.Blocks(title="AI 聊天助手") as demo:
-        # 渐变标题栏
+    # Create Gradio interface - modern minimalist design
+    with gr.Blocks(title="AI Chat") as demo:
+        # Minimal header with gradient text
         gr.HTML("""
         <div id="chat-header">
-            <h1>🤖 AI 聊天助手</h1>
+            <h1>🤖 AI Chat</h1>
+            <p>基于大语言模型的AI聊天助手</p>
         </div>
         """)
 
-        # 聊天框 - 配置头像
+        # Chatbot with custom styling
         chatbot = gr.Chatbot(
-            height=600,
-            placeholder="<center style='color: #999; padding: 20px;'>开始与 AI 对话吧！</center>",
+            height=560,
+            placeholder="<center style='color: #999; padding: 40px 20px;'>💬 输入消息开始对话...</center>",
             avatar_images=(
-                "https://api.dicebear.com/7.x/avataaars/svg?seed=user",
-                "https://api.dicebear.com/7.x/bottts/svg?seed=assistant",
+                "https://api.dicebear.com/7.x/avataaars/svg?seed=Me",
+                "https://api.dicebear.com/7.x/bottts-neutral/svg?seed=AI",
             ),
             elem_classes=["chatbot-container"],
         )
 
-        # 输入区域
+        # Input area with clean layout
         with gr.Row(elem_classes=["input-area"]):
             msg = gr.Textbox(
                 label="",
-                placeholder="请输入你的问题...按回车发送",
+                placeholder="输入你的问题...按回车发送",
                 scale=4,
                 lines=1,
                 container=False,
@@ -218,15 +269,19 @@ def create_gradio_app(provider: ChatProvider, settings: Settings) -> gr.Blocks:
                 elem_classes=["primary-btn"],
             )
 
-        # 清空按钮
+        # Clear button row
         with gr.Row():
-            clear = gr.Button("清空对话", variant="secondary")
+            clear = gr.Button(
+                "清空对话",
+                variant="secondary",
+                elem_classes=["secondary-btn"],
+            )
 
-        # 绑定事件
+        # Event bindings
         msg.submit(respond, [msg, chatbot], chatbot)
         submit_btn.click(respond, [msg, chatbot], chatbot)
         clear.click(lambda: None, None, chatbot, queue=False)
-        msg.submit(lambda: "", outputs=msg)  # 发送后清空输入框
+        msg.submit(lambda: "", outputs=msg)  # Clear after send
         submit_btn.click(lambda: "", outputs=msg)
 
     demo.css = custom_css
