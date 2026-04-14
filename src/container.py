@@ -10,14 +10,16 @@ This makes it easy to:
 - Understand how components depend on each other
 """
 
+from typing import TYPE_CHECKING, Any, Optional
 from fastapi import FastAPI
-import gradio as gr
 
 from .config.settings import Settings, get_settings
 from .domain.chat import ChatProvider
-from .providers.openai_compat import OpenAICompatProvider
+from .repositories.entry_repository import EntryRepository
 from .api.server import create_app
-from .ui.gradio_app import create_gradio_app
+
+if TYPE_CHECKING:
+    import gradio as gr
 
 
 def get_settings_cached() -> Settings:
@@ -25,7 +27,7 @@ def get_settings_cached() -> Settings:
     return get_settings()
 
 
-def get_chat_provider(settings: Settings | None = None) -> ChatProvider:
+def get_chat_provider(settings=None):
     """
     Get configured chat provider.
 
@@ -36,10 +38,21 @@ def get_chat_provider(settings: Settings | None = None) -> ChatProvider:
         Configured chat provider instance
     """
     settings = settings or get_settings_cached()
+    if not settings.api_key:
+        return None
+    from .providers.openai_compat import OpenAICompatProvider
+
     return OpenAICompatProvider(settings)
 
 
-def get_fastapi_app(settings: Settings | None = None) -> FastAPI:
+def get_entry_repository(settings=None):
+    """Get repository for travel entries."""
+
+    settings = settings or get_settings_cached()
+    return EntryRepository(settings)
+
+
+def get_fastapi_app(settings=None):
     """
     Get configured FastAPI application.
 
@@ -51,10 +64,11 @@ def get_fastapi_app(settings: Settings | None = None) -> FastAPI:
     """
     settings = settings or get_settings_cached()
     provider = get_chat_provider(settings)
-    return create_app(provider, settings)
+    entry_repository = get_entry_repository(settings)
+    return create_app(provider, settings, entry_repository)
 
 
-def get_gradio_app(settings: Settings | None = None) -> gr.Blocks:
+def get_gradio_app(settings=None):
     """
     Get configured Gradio application.
 
@@ -64,6 +78,9 @@ def get_gradio_app(settings: Settings | None = None) -> gr.Blocks:
     Returns:
         Configured Gradio app
     """
+    import gradio as gr  # noqa: F401
+    from .ui.gradio_app import create_gradio_app
+
     settings = settings or get_settings_cached()
     provider = get_chat_provider(settings)
     return create_gradio_app(provider, settings)

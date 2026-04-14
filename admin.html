@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Travelbook Admin</title>
+  <style>
+    :root {
+      --bg: #f5f1ea;
+      --panel: #fffdf9;
+      --line: #dfd4c3;
+      --text: #2a241c;
+      --muted: #7a6d5c;
+      --accent: #bd6d2f;
+      --accent-dark: #9f5922;
+      --ok: #2f7d4d;
+      --err: #a6382a;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(189,109,47,0.12), transparent 30%),
+        linear-gradient(180deg, #f8f4ee 0%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+
+    .header {
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      letter-spacing: 0.02em;
+    }
+
+    .header p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.3fr 0.9fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(122, 109, 92, 0.14);
+      border-radius: 18px;
+      box-shadow: 0 14px 40px rgba(78, 58, 35, 0.08);
+      padding: 22px;
+    }
+
+    .card h2 {
+      margin: 0 0 16px;
+      font-size: 18px;
+    }
+
+    form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    input, textarea, select, button {
+      font: inherit;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 11px 12px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    textarea {
+      min-height: 150px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(189, 109, 47, 0.12);
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    button:hover {
+      background: var(--accent-dark);
+      transform: translateY(-1px);
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    .status {
+      min-height: 20px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--err); }
+
+    .preview-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .preview-item {
+      border: 1px solid rgba(122, 109, 92, 0.18);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(255,255,255,0.8);
+    }
+
+    .preview-item strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .preview-item p {
+      margin: 0;
+      line-height: 1.55;
+      color: var(--muted);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    @media (max-width: 840px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <h1>旅行记录录入台</h1>
+      <p>这里负责把旅行内容写进数据库。提交成功后，地球仪页面会直接读取同一批数据。</p>
+      <div class="meta">
+        <span>提交接口：`POST /entries`</span>
+        <span>浏览页面：<a href="/mobile">/mobile</a></span>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="card">
+        <h2>新增记录</h2>
+        <form id="entryForm">
+          <div class="grid-2">
+            <label>
+              Destination
+              <input name="destination" value="Japan" required />
+            </label>
+            <label>
+              Entry Date
+              <input type="date" name="entry_date" required />
+            </label>
+          </div>
+
+          <div class="grid-2">
+            <label>
+              Entry Type
+              <select name="entry_type" required>
+                <option value="memory">memory</option>
+                <option value="note">note</option>
+                <option value="plan">plan</option>
+                <option value="place">place</option>
+              </select>
+            </label>
+            <label>
+              Category
+              <input name="category" placeholder="food / hotel / spot / traffic" />
+            </label>
+          </div>
+
+          <div class="grid-2">
+            <label>
+              Country
+              <input name="country" placeholder="Japan" />
+            </label>
+            <label>
+              City
+              <input name="city" placeholder="Osaka" />
+            </label>
+          </div>
+
+          <div class="grid-2">
+            <label>
+              Latitude
+              <input type="number" step="0.000001" name="lat" placeholder="34.693700" />
+            </label>
+            <label>
+              Longitude
+              <input type="number" step="0.000001" name="lng" placeholder="135.502300" />
+            </label>
+          </div>
+
+          <label>
+            Title
+            <input name="title" placeholder="First ramen in Namba" />
+          </label>
+
+          <label>
+            Content
+            <textarea name="content" placeholder="写下你的中文旅行记录..." required></textarea>
+          </label>
+
+          <button type="submit">保存到数据库</button>
+          <div id="status" class="status"></div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>最近记录</h2>
+        <div id="previewList" class="preview-list">
+          <div class="preview-item">
+            <strong>正在加载...</strong>
+            <p>这里会显示最近几条记录，方便确认刚刚提交的数据已经进库。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('entryForm');
+    const statusEl = document.getElementById('status');
+    const previewList = document.getElementById('previewList');
+
+    document.querySelector('input[name="entry_date"]').value = new Date().toISOString().slice(0, 10);
+
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      statusEl.className = 'status';
+      statusEl.textContent = '正在保存...';
+
+      const formData = new FormData(form);
+      const payload = {
+        destination: formData.get('destination'),
+        entry_date: formData.get('entry_date'),
+        entry_type: formData.get('entry_type'),
+        category: emptyToNull(formData.get('category')),
+        country: emptyToNull(formData.get('country')),
+        city: emptyToNull(formData.get('city')),
+        lat: numberOrNull(formData.get('lat')),
+        lng: numberOrNull(formData.get('lng')),
+        title: emptyToNull(formData.get('title')),
+        content: formData.get('content')
+      };
+
+      try {
+        const response = await fetch('/entries', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.detail || '保存失败');
+        }
+
+        const created = await response.json();
+        statusEl.className = 'status ok';
+        statusEl.textContent = '保存成功，记录 ID：' + created.id;
+        form.reset();
+        document.querySelector('input[name="entry_date"]').value = new Date().toISOString().slice(0, 10);
+        await loadPreview();
+      } catch (error) {
+        statusEl.className = 'status err';
+        statusEl.textContent = error.message || '保存失败';
+      }
+    });
+
+    async function loadPreview() {
+      try {
+        const response = await fetch('/entries');
+        if (!response.ok) {
+          throw new Error('无法加载最近记录');
+        }
+
+        const entries = await response.json();
+        const latest = entries.slice(0, 6);
+
+        if (!latest.length) {
+          previewList.innerHTML = '<div class="preview-item"><strong>还没有记录</strong><p>先在左侧提交第一条旅行内容吧。</p></div>';
+          return;
+        }
+
+        previewList.innerHTML = latest.map(function (entry) {
+          const title = entry.title || (entry.city ? entry.city + ' travel note' : 'Untitled entry');
+          const meta = [entry.entry_date, entry.destination, entry.city].filter(Boolean).join(' · ');
+          return '<div class="preview-item">' +
+            '<strong>' + escapeHtml(title) + '</strong>' +
+            '<p>' + escapeHtml(meta) + '\n' + escapeHtml(entry.content || '') + '</p>' +
+            '</div>';
+        }).join('');
+      } catch (error) {
+        previewList.innerHTML = '<div class="preview-item"><strong>加载失败</strong><p>' + escapeHtml(error.message || '请稍后重试') + '</p></div>';
+      }
+    }
+
+    function emptyToNull(value) {
+      const trimmed = String(value || '').trim();
+      return trimmed ? trimmed : null;
+    }
+
+    function numberOrNull(value) {
+      const trimmed = String(value || '').trim();
+      if (!trimmed) return null;
+      const num = Number(trimmed);
+      return Number.isFinite(num) ? num : null;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    loadPreview();
+  </script>
+</body>
+</html>

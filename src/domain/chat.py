@@ -4,7 +4,7 @@ Defines the contract that all chat providers must implement.
 """
 
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List
 from .message import Message
 
 
@@ -24,7 +24,7 @@ class ChatProvider(ABC):
     @abstractmethod
     async def chat_completion(
         self,
-        messages: list[Message],
+        messages: List[Message],
         temperature: float = 0.7,
         max_tokens: int = 2000,
     ) -> str:
@@ -44,7 +44,7 @@ class ChatProvider(ABC):
     @abstractmethod
     def stream_completion(
         self,
-        messages: list[Message],
+        messages: List[Message],
         temperature: float = 0.7,
         max_tokens: int = 2000,
     ) -> AsyncGenerator[str, None]:

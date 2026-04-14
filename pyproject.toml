@@ -9,13 +9,10 @@ description = "Decoupled AI chat application with FastAPI, Gradio, ready for cre
 authors = []
 requires-python = ">=3.9"
 dependencies = [
-    "gradio>=4.0.0",
-    "openai>=1.0.0",
-    "python-dotenv>=1.0.0",
-    "fastapi>=0.100.0",
-    "uvicorn>=0.24.0",
-    "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.0",
+    "fastapi>=0.95.0",
+    "uvicorn>=0.22.0",
+    "pydantic>=1.10.0",
+    "PyMySQL>=1.0.0",
 ]
 
 [tool.setuptools.packages.find]

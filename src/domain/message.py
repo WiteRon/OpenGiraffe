@@ -4,7 +4,12 @@ Shared across all modules for chat communication.
 """
 
 from pydantic import BaseModel
-from typing import Literal
+from typing import List
+
+try:
+    from typing import Literal
+except ImportError:  # Python 3.6
+    from typing_extensions import Literal
 
 
 Role = Literal["user", "assistant", "system"]
@@ -32,7 +37,7 @@ class ChatRequest(BaseModel):
         max_tokens: Maximum tokens to generate
         stream: Whether to stream the response
     """
-    messages: list[Message]
+    messages: List[Message]
     temperature: float = 0.7
     max_tokens: int = 2000
     stream: bool = True

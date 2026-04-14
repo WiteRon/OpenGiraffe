@@ -68,6 +68,27 @@
     }
     .day-card .date { font-size: 11px; color: #888; margin-bottom: 4px; }
     .day-card .desc { font-size: 13px; line-height: 1.45; }
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .card-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      color: white;
+      background: rgba(216, 112, 147, 0.85);
+    }
+    .card-btn.delete {
+      background: rgba(182, 69, 69, 0.9);
+    }
+    .card-btn:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
     .btn-back {
       position: absolute;
       bottom: 20px; left: 50%;
@@ -106,154 +127,330 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      // 等一帧确保 #globeContainer 已有尺寸再初始化
       requestAnimationFrame(function () {
-        try {
-          initGlobe();
-        } catch (err) {
+        initGlobe().catch(function (err) {
           console.error(err);
           var el = document.getElementById('globeContainer');
           el.innerHTML = '<p style="color:#f88;padding:20px;">加载失败: ' + (err.message || err) + '</p>';
+        });
+      });
+    });
+
+    async function initGlobe() {
+      const container = document.getElementById('globeContainer');
+      const infoPanel = document.getElementById('infoPanel');
+      const backButton = document.getElementById('btnBack');
+      const panelCity = document.getElementById('panelCity');
+      const panelCityDesc = document.getElementById('panelCityDesc');
+      const panelDays = document.getElementById('panelDays');
+      let activePoint = null;
+
+      if (typeof Globe === 'undefined') {
+        container.innerHTML = '<div style="color:#fff;padding:24px;max-width:360px;line-height:1.6;">' +
+          '<p style="color:#f88;margin-bottom:12px;">Globe 脚本未加载成功。</p>' +
+          '<p>请先启动主后端，再用浏览器访问：</p>' +
+          '<p style="margin:12px 0;"><strong>http://localhost:8000/mobile</strong></p>' +
+          '<p style="font-size:12px;color:#888;">在项目根目录执行：<br>python main.py</p>' +
+          '</div>';
+        return;
+      }
+
+      container.innerHTML = '<p style="color:#ddd;padding:20px;">正在加载旅行坐标...</p>';
+
+      const response = await fetch('/locations');
+      if (!response.ok) {
+        throw new Error('无法加载地点数据');
+      }
+
+      const locations = await response.json();
+      const pointsData = (Array.isArray(locations) ? locations : []).map(item => ({
+        key: [item.destination || '', item.country || '', item.city || ''].join('::'),
+        city: item.city,
+        country: item.country,
+        destination: item.destination,
+        lat: Number(item.lat),
+        lng: Number(item.lng),
+        count: item.count,
+        latest_entry_date: item.latest_entry_date,
+        altitude: 0.08,
+        color: '#d87093'
+      }));
+
+      const pointIndex = new Map(pointsData.map(point => [point.key, point]));
+
+      container.innerHTML = '';
+
+      const globe = Globe()
+        .globeImageUrl('/static/earth.jpg')
+        .showAtmosphere(true)
+        .atmosphereColor('lightskyblue')
+        .atmosphereAltitude(0.15)
+        .htmlElementsData(pointsData)
+        .htmlLat(d => d.lat)
+        .htmlLng(d => d.lng)
+        .htmlAltitude(0.05)
+        .htmlElement(d => {
+          const el = document.createElement('div');
+          el.style.cssText = 'display:flex;flex-direction:column;align-items:center;cursor:pointer;pointer-events:auto;user-select:none;-webkit-user-select:none;padding:8px;';
+          el.innerHTML = '<span style="font-size:28px;line-height:1;pointer-events:none;">🚩</span>' +
+            '<span style="font-size:11px;color:#ffb6c1;text-shadow:0 1px 3px #000;margin-top:2px;pointer-events:none;">' + d.city + '</span>';
+          el.dataset.pointKey = d.key;
+          el.addEventListener('click', function (e) {
+            e.stopPropagation();
+            goToCity(d);
+          });
+          return el;
+        })
+        (container);
+
+      async function goToCity(point) {
+        activePoint = point;
+        const ctrl = globe.controls && globe.controls();
+        if (ctrl) ctrl.autoRotate = false;
+        globe.pointOfView({ lat: point.lat, lng: point.lng, altitude: 0.6 }, 1000);
+
+        infoPanel.classList.add('open');
+        backButton.classList.add('visible');
+        panelCity.textContent = point.city;
+        panelCityDesc.textContent = '正在加载这座城市的旅行记录...';
+        panelDays.innerHTML = '';
+
+        try {
+          await showCityInfo(point);
+        } catch (error) {
+          console.error(error);
+          panelCityDesc.textContent = '记录加载失败，请稍后再试。';
+        }
+      }
+
+      async function showCityInfo(point) {
+        const params = new URLSearchParams();
+        if (point.destination) params.set('destination', point.destination);
+        if (point.city) params.set('city', point.city);
+        if (point.country) params.set('country', point.country);
+
+        const entriesResponse = await fetch('/entries?' + params.toString());
+        if (!entriesResponse.ok) {
+          throw new Error('无法加载城市记录');
+        }
+
+        const entries = await entriesResponse.json();
+        panelCity.textContent = point.city;
+        panelCityDesc.textContent = buildSummary(point, entries);
+        panelDays.innerHTML = '';
+
+        if (!Array.isArray(entries) || entries.length === 0) {
+          panelDays.innerHTML = '<div class="day-card"><div class="desc">这个地点还没有旅行记录。</div></div>';
+          return;
+        }
+
+        entries.forEach(function (entry) {
+          const card = document.createElement('div');
+          card.className = 'day-card';
+          const metaParts = [formatDate(entry.entry_date)];
+          if (entry.entry_type) metaParts.push(entry.entry_type);
+          if (entry.category) metaParts.push(entry.category);
+          const title = entry.title ? '<strong>' + escapeHtml(entry.title) + '</strong><br>' : '';
+          card.innerHTML = '<div class="date">' + metaParts.join(' · ') + '</div>' +
+            '<div class="desc">' + title + escapeHtml(entry.content || '') + '</div>' +
+            '<div class="card-actions">' +
+            '  <button type="button" class="card-btn edit" data-entry-id="' + entry.id + '">编辑</button>' +
+            '  <button type="button" class="card-btn delete" data-entry-id="' + entry.id + '">删除</button>' +
+            '</div>';
+
+          const editButton = card.querySelector('.edit');
+          const deleteButton = card.querySelector('.delete');
+          editButton.addEventListener('click', function () {
+            editEntry(entry, point);
+          });
+          deleteButton.addEventListener('click', function () {
+            deleteEntry(entry, point, deleteButton);
+          });
+          panelDays.appendChild(card);
+        });
+      }
+
+      async function editEntry(entry, point) {
+        const nextTitle = window.prompt('编辑标题', entry.title || '');
+        if (nextTitle === null) return;
+
+        const nextContent = window.prompt('编辑正文', entry.content || '');
+        if (nextContent === null) return;
+
+        const nextCategory = window.prompt('编辑分类', entry.category || '');
+        if (nextCategory === null) return;
+
+        try {
+          const response = await fetch('/entries/' + entry.id, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              title: nextTitle.trim() || null,
+              content: nextContent,
+              category: nextCategory.trim() || null
+            })
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.detail || '更新失败');
+          }
+
+          await showCityInfo(point);
+        } catch (error) {
+          window.alert(error.message || '更新失败');
+        }
+      }
+
+      async function deleteEntry(entry, point, button) {
+        const ok = window.confirm('确认删除这条记录吗？这个操作无法撤销。');
+        if (!ok) return;
+
+        button.disabled = true;
+        try {
+          const response = await fetch('/entries/' + entry.id, {
+            method: 'DELETE'
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.detail || '删除失败');
+          }
+
+          await refreshLocationsAndView(point);
+        } catch (error) {
+          button.disabled = false;
+          window.alert(error.message || '删除失败');
+        }
+      }
+
+      async function refreshLocationsAndView(point) {
+        const response = await fetch('/locations');
+        if (!response.ok) {
+          throw new Error('无法刷新地点数据');
+        }
+
+        const locations = await response.json();
+        const nextPoints = locations.map(item => ({
+          key: [item.destination || '', item.country || '', item.city || ''].join('::'),
+          city: item.city,
+          country: item.country,
+          destination: item.destination,
+          lat: Number(item.lat),
+          lng: Number(item.lng),
+          count: item.count,
+          latest_entry_date: item.latest_entry_date,
+          altitude: 0.08,
+          color: '#d87093'
+        }));
+
+        pointIndex.clear();
+        nextPoints.forEach(function (item) {
+          pointIndex.set(item.key, item);
+        });
+        globe.htmlElementsData(nextPoints);
+
+        const nextPoint = pointIndex.get(point.key);
+        if (nextPoint) {
+          activePoint = nextPoint;
+          await showCityInfo(nextPoint);
+        } else {
+          panelCity.textContent = point.city;
+          panelCityDesc.textContent = '这个地点下已经没有记录了。';
+          panelDays.innerHTML = '<div class="day-card"><div class="desc">你刚刚删除了这个地点下的最后一条记录。</div></div>';
+        }
+      }
+
+      backButton.onclick = function () {
+        activePoint = null;
+        infoPanel.classList.remove('open');
+        this.classList.remove('visible');
+        const ctrl = globe.controls && globe.controls();
+        if (ctrl) {
+          ctrl.autoRotate = true;
+          ctrl.autoRotateSpeed = 0.6;
+        }
+        globe.pointOfView({ lat: 0, lng: 0, altitude: 2.5 }, 1200);
+      };
+
+      globe.onGlobeReady(() => {
+        const ctrl = globe.controls && globe.controls();
+        if (ctrl) {
+          ctrl.autoRotate = true;
+          ctrl.autoRotateSpeed = 3;
+          setTimeout(() => {
+            if (globe.controls) globe.controls().autoRotateSpeed = 0.8;
+          }, 2500);
         }
       });
-    });
 
-    function initGlobe() {
-    // 数据（与原有一致）
-    const tripData = {
-      '大连': { coords: [38.92, 121.62], itinerary: '大连：抵达与海鲜之旅。' },
-      '烟台': { coords: [37.52, 121.39], itinerary: '烟台：海风与邮轮的记忆。' },
-      '威海': { coords: [37.50, 122.10], itinerary: '威海：干净安静的海滨小城。' },
-      '青岛': { coords: [36.07, 120.33], itinerary: '青岛：啤酒、红瓦与海浪。' },
-      '郑州': { coords: [34.75, 113.62], itinerary: '郑州：旅程的收尾与返程。' }
-    };
-    const dateEntries = [
-      { year: '2016', month: '01', day: '28', city: '大连', desc: '抵达大连，入住酒店。' },
-      { year: '2016', month: '01', day: '29', city: '大连', desc: '海鲜市场大快朵颐。' },
-      { year: '2016', month: '01', day: '30', city: '烟台', desc: '下午坐邮轮前往烟台。' },
-      { year: '2016', month: '01', day: '31', city: '烟台', desc: '逛逛烟台市区。' },
-      { year: '2016', month: '02', day: '01', city: '烟台', desc: '继续在烟台附近海边散步。' },
-      { year: '2016', month: '02', day: '02', city: '威海', desc: '抵达威海，初见干净海岸线。' },
-      { year: '2016', month: '02', day: '03', city: '威海', desc: '威海深度游一天。' },
-      { year: '2016', month: '02', day: '04', city: '青岛', desc: '前往青岛，入住老城区附近。' },
-      { year: '2016', month: '02', day: '05', city: '青岛', desc: '打卡栈桥、啤酒街与老建筑。' },
-      { year: '2016', month: '02', day: '06', city: '青岛', desc: '继续在青岛随意慢逛。' },
-      { year: '2016', month: '02', day: '07', city: '郑州', desc: '从青岛回到郑州，旅程收尾。' }
-    ];
-
-    const pointsData = Object.entries(tripData).map(([city, data]) => ({
-      city,
-      lat: data.coords[0],
-      lng: data.coords[1],
-      altitude: 0.08,
-      color: '#d87093'
-    }));
-
-    const container = document.getElementById('globeContainer');
-    if (typeof Globe === 'undefined') {
-      container.innerHTML = '<div style="color:#fff;padding:24px;max-width:360px;line-height:1.6;">' +
-        '<p style="color:#f88;margin-bottom:12px;">Globe 脚本未加载成功。</p>' +
-        '<p>请先在本机启动后端，再用浏览器访问：</p>' +
-        '<p style="margin:12px 0;"><strong>http://localhost:8000/mobile</strong></p>' +
-        '<p style="font-size:12px;color:#888;">在项目根目录执行：<br>uvicorn backend.server:app --reload --port 8000</p>' +
-        '</div>';
-      return;
-    }
-
-    const globe = Globe()
-      .globeImageUrl('/static/earth.jpg')
-      .showAtmosphere(true)
-      .atmosphereColor('lightskyblue')
-      .atmosphereAltitude(0.15)
-      .htmlElementsData(pointsData)
-      .htmlLat(d => d.lat)
-      .htmlLng(d => d.lng)
-      .htmlAltitude(0.05)
-      .htmlElement(d => {
-        const el = document.createElement('div');
-        el.style.cssText = 'display:flex;flex-direction:column;align-items:center;cursor:pointer;pointer-events:auto;user-select:none;-webkit-user-select:none;padding:8px;';
-        el.innerHTML = '<span style="font-size:28px;line-height:1;pointer-events:none;">🚩</span>' +
-          '<span style="font-size:11px;color:#ffb6c1;text-shadow:0 1px 3px #000;margin-top:2px;pointer-events:none;">' + d.city + '</span>';
-        el.dataset.city = d.city;
-        el.addEventListener('click', (e) => { e.stopPropagation(); goToCity(d); });
-        return el;
-      })
-      (container);
-
-    function goToCity(point) {
-      const city = point.city;
-      const ctrl = globe.controls && globe.controls();
-      if (ctrl) ctrl.autoRotate = false;
-      globe.pointOfView({ lat: point.lat, lng: point.lng, altitude: 0.6 }, 1000);
-      setTimeout(() => {
-        showCityInfo(city);
-        document.getElementById('infoPanel').classList.add('open');
-        document.getElementById('btnBack').classList.add('visible');
-      }, 400);
-    }
-
-    function showCityInfo(city) {
-      const base = tripData[city] || {};
-      document.getElementById('panelCity').textContent = city;
-      document.getElementById('panelCityDesc').textContent = base.itinerary || '';
-      const daysEl = document.getElementById('panelDays');
-      daysEl.innerHTML = '';
-      const entries = dateEntries.filter(e => e.city === city);
-      entries.forEach(entry => {
-        const card = document.createElement('div');
-        card.className = 'day-card';
-        const dateStr = `${entry.year}年${parseInt(entry.month, 10)}月${parseInt(entry.day, 10)}日`;
-        card.innerHTML = `<div class="date">${dateStr}</div><div class="desc">${entry.desc}</div>`;
-        daysEl.appendChild(card);
-      });
-    }
-
-    document.getElementById('btnBack').onclick = function () {
-      document.getElementById('infoPanel').classList.remove('open');
-      this.classList.remove('visible');
-      const ctrl = globe.controls && globe.controls();
-      if (ctrl) { ctrl.autoRotate = true; ctrl.autoRotateSpeed = 0.6; }
-      globe.pointOfView({ lat: 0, lng: 0, altitude: 2.5 }, 1200);
-    };
-
-    globe.onGlobeReady(() => {
-      const ctrl = globe.controls && globe.controls();
-      if (ctrl) {
-        ctrl.autoRotate = true;
-        ctrl.autoRotateSpeed = 3;
-        setTimeout(() => {
-          if (globe.controls) globe.controls().autoRotateSpeed = 0.8;
-        }, 2500);
+      if (!pointsData.length) {
+        panelCity.textContent = '还没有地点';
+        panelCityDesc.textContent = '地球已经加载完成。去 /admin 添加一条带 city、lat、lng 的记录后，这里就会出现旗子。';
+        panelDays.innerHTML = '<div class="day-card"><div class="desc">当前数据库里还没有可用于标点的地点数据。</div></div>';
       }
-    });
 
-    // 手机端：用全局 touch 追踪识别点击 vs 拖拽
-    let touchStartX = 0, touchStartY = 0, touchTarget = null;
-    container.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1) {
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-        touchTarget = document.elementFromPoint(touchStartX, touchStartY);
-      }
-    }, { passive: true });
-    container.addEventListener('touchend', (e) => {
-      if (e.changedTouches.length === 1) {
-        const dx = e.changedTouches[0].clientX - touchStartX;
-        const dy = e.changedTouches[0].clientY - touchStartY;
-        if (Math.sqrt(dx * dx + dy * dy) < 10 && touchTarget) {
-          // 找到最近的带 data-city 的祖先
-          const flagEl = touchTarget.closest('[data-city]');
-          if (flagEl) {
-            const cityName = flagEl.dataset.city;
-            const point = pointsData.find(p => p.city === cityName);
-            if (point) goToCity(point);
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchTarget = null;
+
+      container.addEventListener('touchstart', function (e) {
+        if (e.touches.length === 1) {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+          touchTarget = document.elementFromPoint(touchStartX, touchStartY);
+        }
+      }, { passive: true });
+
+      container.addEventListener('touchend', function (e) {
+        if (e.changedTouches.length === 1) {
+          const dx = e.changedTouches[0].clientX - touchStartX;
+          const dy = e.changedTouches[0].clientY - touchStartY;
+          if (Math.sqrt(dx * dx + dy * dy) < 10 && touchTarget) {
+            const flagEl = touchTarget.closest('[data-point-key]');
+            if (flagEl) {
+              const point = pointIndex.get(flagEl.dataset.pointKey);
+              if (point) {
+                goToCity(point);
+              }
+            }
           }
         }
-      }
-      touchTarget = null;
-    }, { passive: true });
+        touchTarget = null;
+      }, { passive: true });
 
-    globe.pointOfView({ lat: 35, lng: 118, altitude: 2.2 });
+      globe.pointOfView({ lat: 35, lng: 118, altitude: 2.2 });
+    }
+
+    function buildSummary(point, entries) {
+      const pieces = [];
+      if (point.destination) pieces.push(point.destination);
+      if (point.country && point.country !== point.city) pieces.push(point.country);
+      pieces.push(point.city);
+
+      const header = pieces.filter(Boolean).join(' · ');
+      const countText = Array.isArray(entries) ? '共 ' + entries.length + ' 条记录' : '';
+      return [header, countText].filter(Boolean).join(' · ');
+    }
+
+    function formatDate(value) {
+      if (!value) return '未填写日期';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return value;
+      }
+      return date.getFullYear() + '年' + (date.getMonth() + 1) + '月' + date.getDate() + '日';
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
   </script>
 </body>
