@@ -16,6 +16,7 @@ from ..domain.chat import ChatProvider
 from ..domain.entry import EntryCreate, EntryResponse, EntryUpdate, LocationResponse
 from ..domain.message import ChatRequest, ChatResponse, Message
 from ..repositories.entry_repository import EntryRepository
+from ..services.geocode_service import GeocodeError
 from ..common.exceptions import AppError
 from ..common.logging import get_logger
 
@@ -27,6 +28,7 @@ def create_app(
     provider,
     settings,
     entry_repository,
+    geocode_service,
 ):
     """
     Create and configure FastAPI application.
@@ -133,7 +135,23 @@ def create_app(
         """Create a new travel entry."""
 
         try:
-            return entry_repository.create_entry(request)
+            payload = request.dict() if hasattr(request, "dict") else request.model_dump()
+            if payload.get("city") and (payload.get("lat") is None or payload.get("lng") is None):
+                coords = geocode_service.resolve(
+                    city=payload.get("city"),
+                    country=payload.get("country"),
+                )
+                payload["lat"] = coords["lat"]
+                payload["lng"] = coords["lng"]
+
+            entry_request = EntryCreate(**payload)
+            return entry_repository.create_entry(entry_request)
+        except GeocodeError as e:
+            logger.warning("Geocoding failed while creating entry: %s", str(e))
+            raise HTTPException(status_code=422, detail=str(e))
+        except ValueError as e:
+            logger.warning("Validation error while creating entry: %s", str(e))
+            raise HTTPException(status_code=422, detail=str(e))
         except Exception as e:
             logger.error(f"Failed to create entry: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Failed to create entry: {str(e)}")

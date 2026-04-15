@@ -17,6 +17,7 @@ from .config.settings import Settings, get_settings
 from .domain.chat import ChatProvider
 from .repositories.entry_repository import EntryRepository
 from .api.server import create_app
+from .services.geocode_service import GeocodeService
 
 if TYPE_CHECKING:
     import gradio as gr
@@ -52,6 +53,14 @@ def get_entry_repository(settings=None):
     return EntryRepository(settings)
 
 
+def get_geocode_service(settings=None, entry_repository=None):
+    """Get geocoding service."""
+
+    settings = settings or get_settings_cached()
+    entry_repository = entry_repository or get_entry_repository(settings)
+    return GeocodeService(settings, entry_repository)
+
+
 def get_fastapi_app(settings=None):
     """
     Get configured FastAPI application.
@@ -65,7 +74,8 @@ def get_fastapi_app(settings=None):
     settings = settings or get_settings_cached()
     provider = get_chat_provider(settings)
     entry_repository = get_entry_repository(settings)
-    return create_app(provider, settings, entry_repository)
+    geocode_service = get_geocode_service(settings, entry_repository)
+    return create_app(provider, settings, entry_repository, geocode_service)
 
 
 def get_gradio_app(settings=None):

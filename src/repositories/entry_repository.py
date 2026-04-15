@@ -128,6 +128,34 @@ class EntryRepository:
                 row = cursor.fetchone()
         return EntryResponse(**row) if row else None
 
+    def find_existing_coordinates(self, city, country=None):
+        """Reuse coordinates from an existing entry for the same city/country."""
+
+        conditions = [
+            "city = %s",
+            "lat IS NOT NULL",
+            "lng IS NOT NULL",
+        ]
+        params = [city]
+
+        if country:
+            conditions.append("country = %s")
+            params.append(country)
+
+        query = """
+            SELECT lat, lng
+            FROM entries
+            WHERE {where_clause}
+            ORDER BY id DESC
+            LIMIT 1
+        """.format(where_clause=" AND ".join(conditions))
+
+        with get_db_connection(self.settings) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(query, params)
+                row = cursor.fetchone()
+        return row
+
     def create_entry(self, entry: EntryCreate) -> EntryResponse:
         """Insert a new entry and return the created row."""
 

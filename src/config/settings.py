@@ -62,6 +62,10 @@ class Settings:
     db_password: str = ""
     db_name: str = ""
 
+    geocode_provider: str = "opencage"
+    geocode_api_key: Optional[str] = None
+    geocode_timeout: float = 8.0
+
     cors_allow_origins: Optional[List[str]] = None
 
     default_temperature: float = 0.7
@@ -101,6 +105,9 @@ def get_settings() -> Settings:
             db_user=_get_setting("DB_USER", env_values, default="", required=True) or "",
             db_password=_get_setting("DB_PASSWORD", env_values, default="", required=True) or "",
             db_name=_get_setting("DB_NAME", env_values, default="", required=True) or "",
+            geocode_provider=_get_setting("GEOCODE_PROVIDER", env_values, default="opencage") or "opencage",
+            geocode_api_key=_get_setting("GEOCODE_API_KEY", env_values, default=None),
+            geocode_timeout=float(_get_setting("GEOCODE_TIMEOUT", env_values, default="8.0") or "8.0"),
             cors_allow_origins=[item.strip() for item in cors_value.split(",") if item.strip()],
             default_temperature=float(_get_setting("DEFAULT_TEMPERATURE", env_values, default="0.7") or "0.7"),
             default_max_tokens=int(_get_setting("DEFAULT_MAX_TOKENS", env_values, default="2000") or "2000"),
